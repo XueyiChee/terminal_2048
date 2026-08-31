@@ -1,0 +1,40 @@
+# ==========================================
+# Dune and OCaml Build Artifacts
+# ==========================================
+_build/
+*.install
+compile_commands.json
+
+# Executables
+*.byte
+*.native
+
+# OCaml compiled object files (if generated out-of-tree)
+*.cmo
+*.cma
+*.cmi
+*.a
+*.o
+*.cmx
+*.cmxs
+*.cmxa
+*.cmt
+*.cmti
+*.annot
+
+# ==========================================
+# Package Management
+# ==========================================
+_opam/
+
+# ==========================================
+# Tooling and Editor Configs
+# ==========================================
+.merlin
+
+# Optional: Common text editor backups
+*.swp
+*.swo
+.#*
+*~
+
