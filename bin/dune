@@ -1,4 +1,6 @@
 (executable
  (public_name terminal_2048)
  (name main)
- (libraries terminal_2048))
+ (libraries terminal_2048 stdio base)
+ (preprocess
+  (pps ppx_jane)))

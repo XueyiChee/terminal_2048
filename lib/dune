@@ -1,2 +1,5 @@
 (library
- (name terminal_2048))
+ (name terminal_2048)
+ (libraries base)
+ (preprocess
+  (pps ppx_jane)))
