@@ -1,5 +1,6 @@
 (library
  (name terminal_2048)
- (libraries base)
+ (libraries base stdio)
+ (inline_tests)
  (preprocess
   (pps ppx_jane)))
