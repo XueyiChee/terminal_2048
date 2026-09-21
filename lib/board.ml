@@ -1,16 +1,20 @@
 open! Base
 
 type t = {
+  num_rows: int;
+  num_cols: int;
   rows : int option list list
 }
 
 let create ~rows ~cols =
+  let num_rows = rows in
+  let num_cols = cols in
   let rows = 
-    List.init rows ~f: (fun _ -> 
-      List.init cols ~f: (fun _ -> None)  
+    List.init num_rows ~f: (fun _ -> 
+      List.init num_cols ~f: (fun _ -> None)  
     )
   in
-  {rows}
+  {num_rows; num_cols; rows}
 
 let get t ~row ~col =
   let row_list = List.nth_exn t.rows row in
@@ -28,10 +32,10 @@ let rotate_board_exn t ~direction =
   match direction with
   | Clockwise -> 
     let transposed = List.transpose_exn t.rows in
-    { rows = reflect_rows transposed }
+    { rows = reflect_rows transposed; num_rows = t.num_cols; num_cols = t.num_rows }
   | Counterclockwise ->
     let reflected = reflect_rows t.rows in
-    { rows = List.transpose_exn reflected }
+    { rows = List.transpose_exn reflected; num_rows = t.num_cols; num_cols = t.num_rows }
   
 (** given a list of ints, merges towards the right following usual 2048 rules **)
 let merge_list_right l =  
@@ -63,7 +67,11 @@ let%expect_test "create returns an empty board of the given dimensions" =
 
   (* Test helpers. Tiles are distinct and boards are non-square so that any
    mix-up between rotation, transpose, and reflection shows up in the output. *)
-let of_ints rows = { rows = List.map rows ~f:(List.map ~f:Option.some) }
+let of_ints rows =
+  { rows = List.map rows ~f:(List.map ~f:Option.some)
+  ; num_rows = List.length rows
+  ; num_cols = List.length (List.hd_exn rows)
+  }
 
 let print_rows rows =
   List.iter rows ~f:(fun row ->
