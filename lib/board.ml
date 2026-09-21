@@ -106,7 +106,16 @@ let move t (direction: Direction.t) =
 
 let has_moves _t = failwith "todo"
 
-let empty_cells _t = failwith "todo"
+let empty_cells t =
+  List.mapi t.rows ~f:(fun row_ind row ->
+    List.mapi row ~f:(fun col_ind element ->
+      match element with
+      | None -> Some (row_ind, col_ind)
+      | Some _ -> None
+    )
+  )
+  |> List.concat
+  |> List.filter_map ~f:Fn.id
 
 let place _t ~row:_ ~col:_ ~value:_ = failwith "todo"
 
@@ -306,3 +315,38 @@ let%test_unit "move preserves the sum of all tiles, in every direction" =
     let moved, score = move t direction in
     [%test_eq: int] (sum moved) (sum t);
     assert (score >= 0))
+
+(* the mli leaves the order unspecified, so sort before printing rather than
+   pinning down an order callers cannot rely on *)
+let print_empty_cells t =
+  empty_cells t
+  |> List.sort ~compare:[%compare: int * int]
+  |> List.sexp_of_t [%sexp_of: int * int]
+  |> Stdio.print_s
+
+let%expect_test "every cell of a fresh board is empty" =
+  print_empty_cells (create ~rows:2 ~cols:3);
+  [%expect {| ((0 0) (0 1) (0 2) (1 0) (1 1) (1 2)) |}]
+
+let%expect_test "a full board has no empty cells" =
+  print_empty_cells (parse_board [ "2 4"; "4 2" ]);
+  [%expect {| () |}]
+
+let%expect_test "coordinates are (row, col) of each empty cell" =
+  print_empty_cells (parse_board [ "2 . 4"; ". . 8" ]);
+  [%expect {| ((0 1) (1 0) (1 1)) |}]
+
+let%expect_test "a non-square board reports coordinates the right way round" =
+  print_empty_cells (parse_board [ ". 2 2 2"; "4 4 4 ." ]);
+  [%expect {| ((0 0) (1 3)) |}]
+
+let%test_unit "empty_cells finds exactly the cells that get returns None for" =
+  let t = parse_board [ "2 . 4 ."; ". 8 . 2"; "2 2 . ." ] in
+  let empties = empty_cells t in
+  (* every reported cell really is empty *)
+  List.iter empties ~f:(fun (row, col) ->
+    [%test_eq: int option] (get t ~row ~col) None);
+  (* and no empty cell is missed *)
+  [%test_eq: int]
+    (List.length empties)
+    (List.concat t.rows |> List.count ~f:Option.is_none)
