@@ -60,7 +60,49 @@ let merge_list_right l =
   (merged_list, score) 
 
 
-let move _t _direction = failwith "todo"
+let rec prepend_list_none_count ls ~count =
+  if count = 0 then
+    ls
+  else
+    prepend_list_none_count (None::ls) ~count:(count - 1)
+
+let prepend_list_none_till_length ls ~length =
+  let curr_length = List.length ls in
+  let num_to_insert = length - curr_length in
+  if num_to_insert > 0 then
+    prepend_list_none_count ls ~count:num_to_insert
+  else
+    ls
+
+(** merges every row towards the right, returning the new board together with
+    the total score gained from merges **)
+let merge_board_right t =
+  let new_rows, scores =
+    List.map t.rows ~f:(fun l ->
+      let merged_list, score = List.filter_opt l |> merge_list_right in
+      let padded_row =
+        merged_list
+        |> List.map ~f:Option.some
+        |> prepend_list_none_till_length ~length:t.num_cols
+      in
+      (padded_row, score))
+    |> List.unzip
+  in
+  ({t with rows=new_rows}, List.sum (module Int) scores ~f:Fn.id)
+
+let move t (direction: Direction.t) =
+  let pre_merge, post_merge = match direction with
+  | Right -> Fn.id, Fn.id
+  | Up -> rotate_board_exn ~direction: Clockwise, rotate_board_exn ~direction: Counterclockwise
+  | Down -> rotate_board_exn ~direction: Counterclockwise, rotate_board_exn ~direction: Clockwise
+  | Left ->  
+    let flip = fun x -> rotate_board_exn (rotate_board_exn x ~direction: Clockwise) ~direction: Clockwise in
+    flip, flip
+  in
+  let prepped_board = pre_merge t in
+  let merged_board, score = merge_board_right prepped_board in
+  let final_board = post_merge merged_board in
+  final_board, score
 
 let has_moves _t = failwith "todo"
 
@@ -182,3 +224,85 @@ let%test_unit "merge_list_right preserves the total, never adds tiles, scores \
       assert (merges >= 0);
       [%test_eq: bool] (score > 0) (merges > 0);
       assert (score <= sum l))
+
+(* Boards are written as text so the test reads like the grid it describes.
+   "." is an empty cell. *)
+let parse_board lines =
+  let rows =
+    List.map lines ~f:(fun line ->
+      String.split line ~on:' '
+      |> List.filter ~f:(fun s -> not (String.is_empty s))
+      |> List.map ~f:(function
+        | "." -> None
+        | v -> Some (Int.of_string v)))
+  in
+  { num_rows = List.length rows
+  ; num_cols = List.length (List.hd_exn rows)
+  ; rows
+  }
+
+let print_move lines direction =
+  let board, score = move (parse_board lines) direction in
+  print board;
+  Stdio.printf "score: %d\n" score
+
+let%expect_test "move Right slides and merges towards the right" =
+  print_move [ "2 2 4 ."; ". . . ."; "2 . 2 4" ] Right;
+  [%expect {|
+    . . 4 4
+    . . . .
+    . . 4 4
+    score: 8
+    |}]
+
+let%expect_test "move Left slides and merges towards the left" =
+  print_move [ "2 2 4 ."; ". . . ."; "2 . 2 4" ] Left;
+  [%expect {|
+    4 4 . .
+    . . . .
+    4 4 . .
+    score: 8
+    |}]
+
+let%expect_test "move Up slides and merges along columns" =
+  print_move [ "2 2 4 ."; ". . . ."; "2 . 2 4" ] Up;
+  [%expect {|
+    4 2 4 4
+    . . 2 .
+    . . . .
+    score: 4
+    |}]
+
+let%expect_test "move Down slides and merges along columns" =
+  print_move [ "2 2 4 ."; ". . . ."; "2 . 2 4" ] Down;
+  [%expect {|
+    . . . .
+    . . 4 .
+    4 2 2 4
+    score: 4
+    |}]
+
+let%expect_test "a tile merges at most once per move" =
+  print_move [ "4 4 4 4" ] Right;
+  [%expect {|
+    . . 8 8
+    score: 16
+    |}]
+
+let%expect_test "a move that changes nothing scores nothing" =
+  print_move [ "2 4"; "4 2" ] Left;
+  [%expect {|
+    2 4
+    4 2
+    score: 0
+    |}]
+
+let%test_unit "move preserves the sum of all tiles, in every direction" =
+  let t = parse_board [ "2 2 4 ."; "8 . 8 2"; "2 . 2 4" ] in
+  let sum t =
+    List.concat t.rows |> List.filter_opt |> List.sum (module Int) ~f:Fn.id
+  in
+  List.iter [ Direction.Up; Down; Left; Right ] ~f:(fun direction ->
+    let moved, score = move t direction in
+    [%test_eq: int] (sum moved) (sum t);
+    assert (score >= 0))
