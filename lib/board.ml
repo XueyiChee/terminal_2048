@@ -24,7 +24,7 @@ let reflect_rows rows =
   List.map ~f:List.rev rows
 
 (** Returns a new board type that is rotated 90° in specified direction **)
-let rotate_board_exn t direction =
+let rotate_board_exn t ~direction =
   match direction with
   | Clockwise -> 
     let transposed = List.transpose_exn t.rows in
@@ -93,7 +93,7 @@ let%expect_test "reflect_rows on empty cells and a single column" =
     |}]
 
 let%expect_test "rotate_board_exn Clockwise on a 2x3 board" =
-  print (rotate_board_exn (of_ints [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ]) Clockwise);
+  print (rotate_board_exn (of_ints [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ]) ~direction:Clockwise);
   [%expect {|
     4 1
     5 2
@@ -101,7 +101,7 @@ let%expect_test "rotate_board_exn Clockwise on a 2x3 board" =
     |}]
 
 let%expect_test "rotate_board_exn Counterclockwise on a 2x3 board" =
-  print (rotate_board_exn (of_ints [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ]) Counterclockwise);
+  print (rotate_board_exn (of_ints [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ]) ~direction:Counterclockwise);
   [%expect {|
     3 6
     2 5
@@ -114,7 +114,7 @@ let%test_unit "reflect_rows is an involution" =
 
 let%test_unit "rotation algebra: cw∘ccw = id, and four turns = id" =
   let t = of_ints [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ] in
-  let rot d t = rotate_board_exn t d in
+  let rot direction t = rotate_board_exn t ~direction in
   let same a b = [%test_eq: int option list list] a.rows b.rows in
   same (t |> rot Clockwise |> rot Counterclockwise) t;
   same (t |> rot Counterclockwise |> rot Clockwise) t;
