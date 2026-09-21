@@ -40,18 +40,26 @@ let rotate_board_exn t ~direction =
 (** given a list of ints, merges towards the right following usual 2048 rules **)
 let merge_list_right l =  
   (* first entry is whether or not recent insert is merged or not
-     second entry is the resulting merged list *)
-  snd (List.fold_right l ~init:(true, []) ~f:(fun x accum -> 
-    let recent_merged, curr_tail = accum in
-    match curr_tail with
-    | [] -> (false, [x])
-    | hd :: tl ->
-      let should_merge = (not recent_merged) && (hd = x) in
-      if should_merge then
-        (true, 2 * x :: tl)
-      else
-        (false, x :: curr_tail)     
-  ))
+     second entry is the resulting merged list 
+     third entry is the score gained from merges *)
+  let fold_res = 
+    List.fold_right l 
+      ~init:(true, [], 0) 
+      ~f:(fun x accum -> 
+        let recent_merged, curr_tail, score = accum in
+        match curr_tail with
+        | [] -> (false, [x], score)
+        | hd :: tl ->
+          let should_merge = (not recent_merged) && (hd = x) in
+          if should_merge then
+            (true, 2 * x :: tl, 2 * x + score)
+          else
+            (false, x :: curr_tail, score)     
+      ) in
+  let _, merged_list, score = fold_res in
+  (merged_list, score) 
+
+
 let move _t _direction = failwith "todo"
 
 let has_moves _t = failwith "todo"
@@ -131,39 +139,46 @@ let%test_unit "rotation algebra: cw∘ccw = id, and four turns = id" =
     (t |> rot Clockwise |> rot Clockwise)
     (t |> rot Counterclockwise |> rot Counterclockwise)
 
-let%expect_test "merge_list_right follows 2048 merge rules" =
+let%expect_test "merge_list_right follows 2048 merge rules, and scores merges" =
   List.iter
     [ []
     ; [ 2 ]
     ; [ 2; 4 ]
     ; [ 2; 2 ]
-    ; [ 2; 4; 2 ] (* equal but not adjacent: no merge *)
+    ; [ 2; 4; 2 ] (* equal but not adjacent: no merge, no score *)
     ; [ 2; 2; 2 ] (* the rightmost pair merges first *)
-    ; [ 2; 2; 2; 2 ] (* two separate merges *)
+    ; [ 2; 2; 2; 2 ] (* two separate merges, both scored *)
     ; [ 4; 2; 2 ] (* a merged tile does not merge again in the same move *)
     ; [ 2; 2; 4 ]
     ; [ 8; 4; 4; 8 ]
     ]
     ~f:(fun l ->
-      Stdio.print_s [%sexp (l : int list), "->", (merge_list_right l : int list)]);
+      Stdio.print_s
+        [%sexp (l : int list), "->", (merge_list_right l : int list * int)]);
   [%expect {|
-    (() -> ())
-    ((2) -> (2))
-    ((2 4) -> (2 4))
-    ((2 2) -> (4))
-    ((2 4 2) -> (2 4 2))
-    ((2 2 2) -> (2 4))
-    ((2 2 2 2) -> (4 4))
-    ((4 2 2) -> (4 4))
-    ((2 2 4) -> (4 4))
-    ((8 4 4 8) -> (8 8 8))
+    (() -> (() 0))
+    ((2) -> ((2) 0))
+    ((2 4) -> ((2 4) 0))
+    ((2 2) -> ((4) 4))
+    ((2 4 2) -> ((2 4 2) 0))
+    ((2 2 2) -> ((2 4) 4))
+    ((2 2 2 2) -> ((4 4) 8))
+    ((4 2 2) -> ((4 4) 4))
+    ((2 2 4) -> ((4 4) 4))
+    ((8 4 4 8) -> ((8 8 8) 8))
     |}]
 
-let%test_unit "merge_list_right preserves the total and never adds tiles" =
+let%test_unit "merge_list_right preserves the total, never adds tiles, scores \
+               only what it merges" =
   List.iter
     [ [ 2; 2; 2 ]; [ 4; 4; 8; 8 ]; [ 2; 4; 8; 16 ]; [ 2; 2; 4; 8 ]; [ 16; 16; 16; 16 ] ]
     ~f:(fun l ->
-      let merged = merge_list_right l in
+      let merged, score = merge_list_right l in
       let sum = List.sum (module Int) ~f:Fn.id in
+      (* merging moves tiles together, it never creates or destroys value *)
       [%test_eq: int] (sum merged) (sum l);
-      assert (List.length merged <= List.length l))
+      (* each merge turns two tiles into one, and scores that one tile *)
+      let merges = List.length l - List.length merged in
+      assert (merges >= 0);
+      [%test_eq: bool] (score > 0) (merges > 0);
+      assert (score <= sum l))
