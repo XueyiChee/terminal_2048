@@ -21,7 +21,7 @@ val get : t -> row:int -> col:int -> int option
 val move : t -> Direction.t -> t * int
 
 (** [has_moves t] is [true] iff at least one of the four directions would
-    change [t] under [move] (i.e. there is an empty cell, or two adjacent
+    change [t] under [move] or board is empty (i.e. there is an empty cell, or two adjacent
     equal tiles somewhere). *)
 val has_moves : t -> bool
 

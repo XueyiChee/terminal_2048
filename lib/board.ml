@@ -104,8 +104,6 @@ let move t (direction: Direction.t) =
   let final_board = post_merge merged_board in
   final_board, score
 
-let has_moves _t = failwith "todo"
-
 let empty_cells t =
   List.mapi t.rows ~f:(fun row_ind row ->
     List.mapi row ~f:(fun col_ind element ->
@@ -116,6 +114,20 @@ let empty_cells t =
   )
   |> List.concat
   |> List.filter_map ~f:Fn.id
+
+(* returns true if and only if ls has identical neighbouring elements *)
+let rec has_common_neighbours = function
+  | [] | [_] -> false
+  | x::y::tl -> Option.equal Int.equal x y || has_common_neighbours (y::tl)
+
+let any_row_has_common_neighbours t =
+  List.exists t.rows ~f:has_common_neighbours
+
+(* board has no moves if and only if the there are no empty cells and no similar neighbouring cells *)
+let has_moves t = 
+  not (List.is_empty (empty_cells t)) 
+  || any_row_has_common_neighbours t
+  || any_row_has_common_neighbours (rotate_board_exn t ~direction:Clockwise) 
 
 let place _t ~row:_ ~col:_ ~value:_ = failwith "todo"
 
@@ -350,3 +362,79 @@ let%test_unit "empty_cells finds exactly the cells that get returns None for" =
   [%test_eq: int]
     (List.length empties)
     (List.concat t.rows |> List.count ~f:Option.is_none)
+
+let print_has_moves lines =
+  let t = parse_board lines in
+  print t;
+  Stdio.printf "has_moves: %b\n" (has_moves t)
+
+let%expect_test "an empty cell means there is always a move" =
+  print_has_moves [ "2 4 2"; "4 2 ."; "2 4 2" ];
+  [%expect {|
+    2 4 2
+    4 2 .
+    2 4 2
+    has_moves: true
+    |}]
+
+let%expect_test "a fresh board has moves" =
+  let t = create ~rows:2 ~cols:2 in
+  Stdio.printf "has_moves: %b\n" (has_moves t);
+  [%expect {| has_moves: true |}]
+
+let%expect_test "a full board with no adjacent equal tiles has no moves" =
+  print_has_moves [ "2 4 2"; "4 2 4"; "2 4 2" ];
+  [%expect {|
+    2 4 2
+    4 2 4
+    2 4 2
+    has_moves: false
+    |}]
+
+let%expect_test "adjacent equal tiles in a row mean a move" =
+  print_has_moves [ "2 2"; "4 8" ];
+  [%expect {|
+    2 2
+    4 8
+    has_moves: true
+    |}]
+
+let%expect_test "adjacent equal tiles in a column mean a move" =
+  print_has_moves [ "2 4"; "2 8" ];
+  [%expect {|
+    2 4
+    2 8
+    has_moves: true
+    |}]
+
+let%expect_test "equal tiles on a diagonal are not adjacent" =
+  print_has_moves [ "2 4"; "4 2" ];
+  [%expect {|
+    2 4
+    4 2
+    has_moves: false
+    |}]
+
+let%expect_test "a single full cell has no moves" =
+  print_has_moves [ "2" ];
+  [%expect {|
+    2
+    has_moves: false
+    |}]
+
+let%test_unit "has_moves agrees with whether any direction changes the board" =
+  List.iter
+    [ [ "2 4 2"; "4 2 4"; "2 4 2" ] (* stuck *)
+    ; [ "2 4 2"; "4 2 ."; "2 4 2" ] (* an empty cell *)
+    ; [ "2 2 4"; "4 8 2"; "2 4 8" ] (* a horizontal pair *)
+    ; [ "2 4 8"; "2 8 4"; "4 2 2" ] (* a vertical pair *)
+    ]
+    ~f:(fun lines ->
+      let t = parse_board lines in
+      let changes direction =
+        let moved, _ = move t direction in
+        not ([%compare.equal: int option list list] moved.rows t.rows)
+      in
+      [%test_eq: bool]
+        (has_moves t)
+        (List.exists [ Direction.Up; Down; Left; Right ] ~f:changes))
