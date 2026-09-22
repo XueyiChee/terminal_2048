@@ -14,7 +14,11 @@ type t = {
   score: int;
 }
 
-let create ~rows:_ ~cols:_ = failwith "todo"
+let create ~rows ~cols =
+  { 
+    board=Board.create ~rows ~cols; 
+    score=0 
+  }
 
 let board _t = failwith "todo"
 
@@ -22,7 +26,7 @@ let score _t = failwith "todo"
 
 let status _t = failwith "todo"
 
-let move t dir =
+let move _t _dir =
   failwith "todo"
 
 let apply _t _command = failwith "todo"
