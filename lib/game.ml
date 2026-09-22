@@ -23,7 +23,9 @@ let create ~rows ~cols =
 let board t = 
   t.board
 
-let score _t = failwith "todo"
+let score t =
+  t.score
+
 
 let status _t = failwith "todo"
 
