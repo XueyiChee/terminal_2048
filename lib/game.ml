@@ -20,7 +20,8 @@ let create ~rows ~cols =
     score=0 
   }
 
-let board _t = failwith "todo"
+let board t = 
+  t.board
 
 let score _t = failwith "todo"
 
