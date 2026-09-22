@@ -12,12 +12,14 @@ type status =
 type t = {
   board: Board.t;
   score: int;
+  status: status
 }
 
 let create ~rows ~cols =
   { 
     board=Board.create ~rows ~cols; 
-    score=0 
+    score=0;
+    status=In_progress 
   }
 
 let board t = 
@@ -26,8 +28,8 @@ let board t =
 let score t =
   t.score
 
-
-let status _t = failwith "todo"
+let status t =
+  t.status
 
 let move _t _dir =
   failwith "todo"
