@@ -129,7 +129,31 @@ let has_moves t =
   || any_row_has_common_neighbours t
   || any_row_has_common_neighbours (rotate_board_exn t ~direction:Clockwise) 
 
-let place _t ~row:_ ~col:_ ~value:_ = failwith "todo"
+(* checks if a position is in bounds for the given t, raises exception if not *)
+let check_position_in_bounds_exn t ~row ~col = 
+  if row < 0 || row >= t.num_rows || col < 0 || col >= t.num_cols 
+  then failwith
+    [%string
+    "out of bounds: row:%{row#Int}, col:%{col#Int} on a \
+      %{t.num_rows#Int}x%{t.num_cols#Int} board"]
+
+let place t ~row ~col ~value = 
+  check_position_in_bounds_exn t ~row ~col;
+  if value <= 0 then
+    failwith [%string "value needs to be positive but got %{value#Int}"];
+  let new_rows = List.mapi t.rows ~f:(fun ri row_ls ->
+    if ri = row then
+      List.mapi row_ls ~f:(fun ci entry -> 
+        if ci = col then
+          Some value
+        else
+          entry
+      )
+    else
+      row_ls
+  ) in
+  {t with rows = new_rows}
+
 
 let%expect_test "create returns an empty board of the given dimensions" =
   let t = create ~rows:2 ~cols:3 in
@@ -438,3 +462,66 @@ let%test_unit "has_moves agrees with whether any direction changes the board" =
       [%test_eq: bool]
         (has_moves t)
         (List.exists [ Direction.Up; Down; Left; Right ] ~f:changes))
+
+(* the mli only promises that these raise, so print the exception rather than
+   pinning down a message the interface does not guarantee *)
+let show_raise f =
+  match f () with
+  | _ -> Stdio.print_endline "did not raise"
+  | exception _ -> Stdio.print_endline "raised"
+
+let%expect_test "place puts a value in an empty cell" =
+  print (place (parse_board [ "2 . 4"; ". . 8" ]) ~row:1 ~col:0 ~value:16);
+  [%expect {|
+    2 . 4
+    16 . 8
+    |}]
+
+let%expect_test "place overwrites whatever was there" =
+  print (place (parse_board [ "2 . 4"; ". . 8" ]) ~row:0 ~col:2 ~value:32);
+  [%expect {|
+    2 . 32
+    . . 8
+    |}]
+
+let%expect_test "place returns a copy, leaving the original alone" =
+  let t = parse_board [ "2 ."; ". 4" ] in
+  let placed = place t ~row:0 ~col:1 ~value:8 in
+  print t;
+  print placed;
+  [%expect {|
+    2 .
+    . 4
+    2 8
+    . 4
+    |}]
+
+let%expect_test "place raises outside the board" =
+  let t = parse_board [ "2 . 4"; ". . 8" ] in
+  (* a 2x3 board: rows 0-1, cols 0-2 *)
+  show_raise (fun () -> place t ~row:2 ~col:0 ~value:2);
+  show_raise (fun () -> place t ~row:0 ~col:3 ~value:2);
+  show_raise (fun () -> place t ~row:(-1) ~col:0 ~value:2);
+  show_raise (fun () -> place t ~row:0 ~col:(-1) ~value:2);
+  [%expect {|
+    raised
+    raised
+    raised
+    raised
+    |}]
+
+let%expect_test "place raises on a value that is not positive" =
+  let t = parse_board [ "2 . 4"; ". . 8" ] in
+  show_raise (fun () -> place t ~row:0 ~col:1 ~value:0);
+  show_raise (fun () -> place t ~row:0 ~col:1 ~value:(-4));
+  [%expect {|
+    raised
+    raised
+    |}]
+
+let%expect_test "the last cell of a non-square board is in bounds" =
+  print (place (parse_board [ ". . ."; ". . ." ]) ~row:1 ~col:2 ~value:2);
+  [%expect {|
+    . . .
+    . . 2
+    |}]
