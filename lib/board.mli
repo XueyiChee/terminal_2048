@@ -12,6 +12,11 @@ val create : rows:int -> cols:int -> t
     cell is empty. Raises if [(row, col)] is out of bounds. *)
 val get : t -> row:int -> col:int -> int option
 
+(** [to_string_hum t] renders [t] as one line per row, cells separated by a
+    space and an empty cell written as ".". The returned string ends in a
+    newline. Columns are not aligned. *)
+val to_string_hum : t -> string
+
 (** [move t direction] slides and merges all tiles on [t] one step in
     [direction], as in standard 2048: adjacent equal tiles merge into a
     single tile of double the value, and each tile merges at most once per

@@ -21,6 +21,18 @@ let get t ~row ~col =
   let row_list = List.nth_exn t.rows row in
   List.nth_exn row_list col 
 
+(* one line per row, cells separated by a space, "." for an empty cell *)
+let rows_to_string_hum rows =
+  List.map rows ~f:(fun row ->
+    List.map row ~f:(function
+      | None -> "."
+      | Some value -> Int.to_string value)
+    |> String.concat ~sep:" ")
+  |> List.map ~f:(fun line -> line ^ "\n")
+  |> String.concat
+
+let to_string_hum t = rows_to_string_hum t.rows
+
 
 type rotation_direction = Clockwise | Counterclockwise
 
@@ -169,13 +181,8 @@ let of_ints rows =
   ; num_cols = List.length (List.hd_exn rows)
   }
 
-let print_rows rows =
-  List.iter rows ~f:(fun row ->
-    List.map row ~f:(function None -> "." | Some v -> Int.to_string v)
-    |> String.concat ~sep:" "
-    |> Stdio.print_endline)
-
-let print t = print_rows t.rows
+let print_rows rows = Stdio.print_string (rows_to_string_hum rows)
+let print t = Stdio.print_string (to_string_hum t)
 
 let%expect_test "reflect_rows reverses each row, keeps row order" =
   print_rows (reflect_rows (of_ints [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ]).rows);
