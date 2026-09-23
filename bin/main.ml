@@ -4,8 +4,7 @@ open! Terminal_2048
 
 let rec loop (game:Game.t) =
   printf "Score: %d\n" (Game.score game);
-  let board_str = Board.to_string_hum (Game.board game) in
-  print_endline board_str;
+  print_string (Render.board (Game.board game));
   print_string "$ ";
   Out_channel.flush Out_channel.stdout;
   match In_channel.input_line In_channel.stdin with

@@ -8,13 +8,18 @@ type t [@@deriving equal, sexp_of]
     Both [rows] and [cols] must be positive. *)
 val create : rows:int -> cols:int -> t
 
+(** The dimensions [t] was created with. *)
+val num_rows : t -> int
+val num_cols : t -> int
+
 (** [get t ~row ~col] returns the tile value at [(row, col)], or [None] if the
     cell is empty. Raises if [(row, col)] is out of bounds. *)
 val get : t -> row:int -> col:int -> int option
 
 (** [to_string_hum t] renders [t] as one line per row, cells separated by a
-    space and an empty cell written as ".". The returned string ends in a
-    newline. Columns are not aligned. *)
+    space and an empty cell written as ".". Every cell is right-aligned to the
+    width of the widest tile, so the columns line up. The returned string ends
+    in a newline. For the player-facing rendering, see {!Render.board}. *)
 val to_string_hum : t -> string
 
 (** [move t direction] slides and merges all tiles on [t] one step in

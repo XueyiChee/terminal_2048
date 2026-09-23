@@ -17,16 +17,31 @@ let create ~rows ~cols =
   in
   {num_rows; num_cols; rows}
 
+let num_rows t = t.num_rows
+let num_cols t = t.num_cols
+
 let get t ~row ~col =
   let row_list = List.nth_exn t.rows row in
   List.nth_exn row_list col 
 
-(* one line per row, cells separated by a space, "." for an empty cell *)
+(* one line per row, "." for an empty cell. Every cell is right-aligned to the
+   width of the widest cell on the board, so the columns line up however many
+   digits the tiles have. *)
 let rows_to_string_hum rows =
-  List.map rows ~f:(fun row ->
-    List.map row ~f:(function
-      | None -> "."
-      | Some value -> Int.to_string value)
+  let cells =
+    List.map rows ~f:(fun row ->
+      List.map row ~f:(function
+        | None -> "."
+        | Some value -> Int.to_string value))
+  in
+  let width =
+    List.concat cells
+    |> List.max_elt ~compare:(fun a b -> Int.compare (String.length a) (String.length b))
+    |> Option.value_map ~default:1 ~f:String.length
+  in
+  List.map cells ~f:(fun row ->
+    List.map row ~f:(fun cell ->
+      String.make (width - String.length cell) ' ' ^ cell)
     |> String.concat ~sep:" ")
   |> List.map ~f:(fun line -> line ^ "\n")
   |> String.concat
@@ -481,15 +496,15 @@ let show_raise f =
 let%expect_test "place puts a value in an empty cell" =
   print (place (parse_board [ "2 . 4"; ". . 8" ]) ~row:1 ~col:0 ~value:16);
   [%expect {|
-    2 . 4
-    16 . 8
+     2  .  4
+    16  .  8
     |}]
 
 let%expect_test "place overwrites whatever was there" =
   print (place (parse_board [ "2 . 4"; ". . 8" ]) ~row:0 ~col:2 ~value:32);
   [%expect {|
-    2 . 32
-    . . 8
+    2  . 32
+    .  .  8
     |}]
 
 let%expect_test "place returns a copy, leaving the original alone" =
