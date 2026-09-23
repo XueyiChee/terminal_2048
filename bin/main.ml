@@ -2,28 +2,30 @@ open! Base
 open! Stdio
 open! Terminal_2048
 
-let rec loop () =
+let rec loop (game:Game.t) =
+  printf "Score: %d\n" (Game.score game);
+  let board_str = Board.to_string_hum (Game.board game) in
+  print_endline board_str;
   print_string "$ ";
   Out_channel.flush Out_channel.stdout;
   match In_channel.input_line In_channel.stdin with
   | None ->
     print_endline "No command passed, try again";
-    loop ()
+    loop game
   | Some raw_str ->
     match Command.of_string raw_str with
     | None ->
       print_endline "Invalid command, try again";
-      loop ()
+      loop game
     | Some cmd ->
       match cmd with
       | Quit ->
         print_endline "Quitting"
-      | _ ->
-        print_string "Execute command: ";
-        print_s [%sexp (cmd : Command.t)];
-        loop ()
-
+      | Direction d ->
+        let game = Game.apply game (Direction d) in
+        loop game
 
 let () = 
-  loop ()
+  let game = Game.create ~rows:4 ~cols:4 () in
+  loop game
 
