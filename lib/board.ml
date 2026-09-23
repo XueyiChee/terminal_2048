@@ -5,6 +5,7 @@ type t = {
   num_cols: int;
   rows : int option list list
 }
+[@@deriving equal, sexp_of]
 
 let create ~rows ~cols =
   let num_rows = rows in

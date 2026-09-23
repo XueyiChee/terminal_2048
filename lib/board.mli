@@ -2,7 +2,7 @@ open! Base
 
 (** An immutable 2048 board: a fixed-size grid of cells, each either empty or
     holding a positive power-of-two tile value. *)
-type t
+type t [@@deriving equal, sexp_of]
 
 (** [create ~rows ~cols] returns an empty board of the given dimensions.
     Both [rows] and [cols] must be positive. *)
